@@ -1,6 +1,7 @@
 const fs = require('fs')
 const { Worker } = require('worker_threads')
-const { download, saveStream, handleError } = require('./utils')
+const process = require('process');
+const { download, saveStream, handleError, errors, currentTime } = require('./utils')
 
 const srdler = () => {
   const input_url = process.argv.slice(2)[0] ? process.argv.slice(2)[0] : ""
@@ -12,17 +13,55 @@ const srdler = () => {
 
   const folder = `showroom-${Date.now()}/`
 
-  const path = `${dir}${folder}`
+  let path = `${dir}${folder}`
 
   const success = new Set()
 
-  let current
-
   return async function main() {
 
-    init()
+    await init()
 
+    oldStreamRecover()
+    setInterval(oldStreamRecover, 5000)
+    setInterval(downloadStream, 1500);
+
+
+
+
+    process.on('SIGINT', async () => {
+      const files = fileCheck()
+      fs.writeFileSync(`${path}file.txt`, files)
+      console.log(`ffmpeg -f concat -i ${path}file.txt -c copy ${path}output.mp4`)
+      process.exit()
+    })
+  }
+
+  function fileCheck() {
+    let string = ""
+    const missing = []
+    for (let i = 1; success.size > 0; i++) {
+      const filename = `media_${i}.ts`
+      if (success.has(filename)) {
+        string += `file '${filename}'\r\n`
+        success.delete(filename)
+      } else {
+        missing.push(filename)
+      }
+    }
+    console.log("missing: " + missing)
+    console.log(string)
+    return string
+  }
+
+  async function init() {
+    const now = currentTime()
+    const timestamp = `${now.year}${now.month}${now.date}`
+
+    m3u8_url = input_url
+
+    //wait for the live stream start
     if (input_url.includes("www.showroom-live.com")) {
+      path = `${dir}${timestamp}-showroom-${input_url.replace(/http.*www\.showroom-live\.com\//g, "")}/`
       while (true) {
         const res = await download(input_url)
         const room_id = res.match(/room_id=\d+/g)[0].substring(8)
@@ -41,15 +80,6 @@ const srdler = () => {
 
     media_url_prefix = m3u8_url.replace("chunklist.m3u8", "")
 
-    oldStreamRecover()
-    setInterval(oldStreamRecover, 5000)
-    setInterval(downloadStream, 1500);
-  }
-
-  function init() {
-
-    m3u8_url = input_url
-
     //create folder
     try {
       fs.mkdirSync(path)
@@ -67,7 +97,7 @@ const srdler = () => {
       const m3u8 = await download(m3u8_url)
       return m3u8.match(/media_\d+.ts/g)
     } catch (err) {
-      console.log("cannot get m3u8 file")
+      handleError(path, err, errors.M3U8)
     }
   }
 
@@ -75,11 +105,9 @@ const srdler = () => {
     let current
     try {
       const streamList = await getStreamList()
-      console.log(streamList)
       current = streamList[0].match(/\d+/g)[0]
     } catch (err) {
-      console.log(err.message)
-      console.log("Cannot recover old streams")
+      handleError(path, err, errors.M3U8)
     }
     const worker = new Worker('./worker.js', {
       workerData: {
@@ -88,32 +116,31 @@ const srdler = () => {
     })
 
     worker.once('message', (recover) => {
-      console.log("recover" + recover)
+      console.log("recover: " + recover)
+
       recover.forEach((e) => success.add(e))
     })
-    console.log(success)
   }
 
   async function downloadStream() {
-    console.log(success)
+    let streamList
     try {
-      const streamList = await getStreamList()
-      streamList.forEach(async filename => {
-        if (!success.has(filename)) {
-          try {
-            // throw Error("mannual error")
-            const stream = await download(media_url_prefix + filename)
-            saveStream(success, path, stream, filename)
-          } catch (err) {
-            handleError(err, filename)
-          }
-        }
-      });
-    } catch (err) {
-      console.error("downloadStrem: cannot download")
+      streamList = await getStreamList()
     }
+    catch (err) {
+      return handleError(path, err, errors.M3U8)
+    }
+    streamList.forEach(async filename => {
+      if (!success.has(filename)) {
+        try {
+          const stream = await download(media_url_prefix + filename)
+          saveStream(success, path, stream, filename)
+        } catch (err) {
+          handleError(path, err, errors.PARENT, filename)
+        }
+      }
+    });
   }
-
 
   function delay(delayInms) {
     return new Promise(resolve => {
@@ -122,10 +149,6 @@ const srdler = () => {
       }, delayInms);
     });
   }
-  // logError() {
-
-  // }
-
 }
 
 const dler = srdler()

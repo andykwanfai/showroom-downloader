@@ -11,19 +11,18 @@ async function oldStreamRecover() {
     if (success.has(filename)) {
       continue
     }
-    const func = async () => {
-      try {
-        const stream = await download(media_url_prefix + filename)
-        saveStream(success, path, stream, filename)
-        recover.push(filename)
-        console.log(`Recover ${filename}`)
-      } catch (err) {
-        handleError(err, filename, i)
-      }
+    try {
+      const stream = await download(media_url_prefix + filename)
+      saveStream(success, path, stream, filename)
+      recover.push(filename)
+    } catch (err) {
+      // handleError(path, err, filename, "Recover Error")
     }
-    func()
   }
-  parentPort.postMessage(recover)
+
+  if (recover.length > 0) {
+    parentPort.postMessage(recover)
+  }
 }
 
 oldStreamRecover()
