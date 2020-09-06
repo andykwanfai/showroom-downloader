@@ -22,7 +22,7 @@ const srdler = () => {
     await init()
 
     oldStreamRecover()
-    setInterval(oldStreamRecover, 5000)
+    setInterval(oldStreamRecover, 10000)
     setInterval(downloadStream, 1500);
 
 
@@ -30,7 +30,7 @@ const srdler = () => {
 
     process.on('SIGINT', async () => {
       const files = fileCheck()
-      fs.writeFileSync(`${path}file.txt`, files)
+      fs.appendFileSync(`${path}file.txt`, files)
       console.log(`ffmpeg -f concat -i ${path}file.txt -c copy ${path}output.mp4`)
       process.exit()
     })
@@ -49,7 +49,6 @@ const srdler = () => {
       }
     }
     console.log("missing: " + missing)
-    console.log(string)
     return string
   }
 
@@ -68,6 +67,7 @@ const srdler = () => {
         if (room_id) {
           const res = await download(`https://www.showroom-live.com/api/live/streaming_url?room_id=${room_id}`)
           if (Object.keys(res).length !== 0) {
+            console.log(res.streaming_url_list)
             m3u8_url = res.streaming_url_list[0].url
             console.log(m3u8_url)
             break
