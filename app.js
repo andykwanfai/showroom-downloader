@@ -9,7 +9,7 @@ const srdler = () => {
   let m3u8_url
   let media_url_prefix
 
-  const dir = process.argv.slice(2)[1] ? process.argv.slice(2)[1] : "R:/"
+  const dir = process.argv.slice(2)[1] ? process.argv.slice(2)[1] : ""
 
   const folder = `showroom-${Date.now()}/`
 
@@ -74,7 +74,7 @@ const srdler = () => {
           }
         }
         console.log("waiting live stream start")
-        await delay(2000)
+        await delay(5000)
       }
     }
 
