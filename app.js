@@ -4,16 +4,16 @@ const process = require('process');
 const { download, saveStream, handleError, errors, currentTime } = require('./utils')
 
 const srdler = () => {
-  const input_url = process.argv.slice(2)[0] ? process.argv.slice(2)[0] : ""
+  const args = process.argv.slice(2)
+  const input_url = args[0] ? args[0] : ""
 
   let m3u8_url
   let media_url_prefix
 
-  const dir = process.argv.slice(2)[1] ? process.argv.slice(2)[1] : ""
-
+  let dir = args[1] ? args[1] : "./"
   const folder = `showroom-${Date.now()}/`
 
-  let path = `${dir}${folder}`
+  let path = dir + folder
 
   const success = new Set()
 
@@ -62,20 +62,19 @@ const srdler = () => {
     if (input_url.includes("www.showroom-live.com")) {
       path = `${dir}${timestamp}-showroom-${input_url.replace(/http.*www\.showroom-live\.com\//g, "")}/`
       while (true) {
-        const res = await download(input_url)
-        const room_id = res.match(/room_id=\d+/g)[0].substring(8)
-        if (room_id) {
-          const res = await download(`https://www.showroom-live.com/api/live/streaming_url?room_id=${room_id}`)
-          if (Object.keys(res).length !== 0) {
-            console.log(res.streaming_url_list)
-            m3u8_url = res.streaming_url_list[0].url
-            console.log(m3u8_url)
-            break
-          }
+        const m3u8 = await getM3u8()
+        if (m3u8) {
+          m3u8_url = m3u8
+          break
         }
-        console.log("waiting live stream start")
         await delay(5000)
       }
+    }
+
+    if (args[1] === "--m3u8") {
+      //return m3u8 url only
+      console.log(m3u8_url)
+      process.exit()
     }
 
     media_url_prefix = m3u8_url.replace("chunklist.m3u8", "")
@@ -89,6 +88,19 @@ const srdler = () => {
       // fs.mkdirSync(folder)
       // path = folder
     }
+  }
+
+  async function getM3u8() {
+    const res = await download(input_url)
+    const room_id = res.match(/room_id=\d+/g)[0].substring(8)
+    if (room_id) {
+      const res = await download(`https://www.showroom-live.com/api/live/streaming_url?room_id=${room_id}`)
+      if (Object.keys(res).length !== 0) {
+        console.log(res.streaming_url_list)
+        return res.streaming_url_list[0].url
+      }
+    }
+    console.log("waiting live stream start")
   }
 
   //get m3u8 and return stream list
