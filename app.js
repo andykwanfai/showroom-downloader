@@ -1,7 +1,7 @@
 const fs = require('fs')
 const { Worker } = require('worker_threads')
 const process = require('process');
-const { download, saveStream, handleError, errors, currentTime } = require('./utils')
+const { download, saveStream, handleError, currentTime } = require('./utils')
 
 const srdler = () => {
   const args = process.argv.slice(2)
@@ -109,7 +109,8 @@ const srdler = () => {
       const m3u8 = await download(m3u8_url)
       return m3u8.match(/media_\d+.ts/g)
     } catch (err) {
-      handleError(path, err, errors.M3U8)
+      console.log(err)
+      // handleError(path, err, errors.M3U8)
     }
   }
 
@@ -119,7 +120,7 @@ const srdler = () => {
       const streamList = await getStreamList()
       current = streamList[0].match(/\d+/g)[0]
     } catch (err) {
-      handleError(path, err, errors.M3U8)
+      // handleError(path, err, errors.M3U8)
     }
     const worker = new Worker('./worker.js', {
       workerData: {
@@ -140,7 +141,8 @@ const srdler = () => {
       streamList = await getStreamList()
     }
     catch (err) {
-      return handleError(path, err, errors.M3U8)
+      return console.log(err)
+      // return handleError(path, err, errors.M3U8)
     }
     streamList.forEach(async filename => {
       if (!success.has(filename)) {
@@ -148,7 +150,8 @@ const srdler = () => {
           const stream = await download(media_url_prefix + filename)
           saveStream(success, path, stream, filename)
         } catch (err) {
-          handleError(path, err, errors.PARENT, filename)
+          console.log(err)
+          // handleError(path, err, errors.PARENT, filename)
         }
       }
     });

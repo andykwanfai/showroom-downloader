@@ -40,7 +40,8 @@ async function download(url) {
 function saveStream(success, path, stream, filename) {
   fs.writeFile(`${path}${filename}`, stream, { encoding: "binary" }, (err) => {
     if (err) {
-      handleError(path, err, errors.SAVE, filename)
+      console.log(err)
+      // handleError(path, err, errors.SAVE, filename)
     } else {
       console.log(`saved ${filename}`)
       success.add(filename)
@@ -66,6 +67,6 @@ module.exports = {
   saveStream: saveStream,
   handleError: handleError,
   download: download,
-  errors: error_types,
+  // errors: error_types,
   currentTime: currentTime
 }
